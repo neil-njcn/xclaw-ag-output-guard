@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+src/xclaw_ag_output_guard/__init__.py
+src/xclaw_ag_output_guard/config.py
+src/xclaw_ag_output_guard/detector.py
+src/xclaw_ag_output_guard/interceptor.py
+src/xclaw_ag_output_guard/py.typed
+src/xclaw_ag_output_guard.egg-info/PKG-INFO
+src/xclaw_ag_output_guard.egg-info/SOURCES.txt
+src/xclaw_ag_output_guard.egg-info/dependency_links.txt
+src/xclaw_ag_output_guard.egg-info/entry_points.txt
+src/xclaw_ag_output_guard.egg-info/requires.txt
+src/xclaw_ag_output_guard.egg-info/top_level.txt
+tests/test_output_guard.py

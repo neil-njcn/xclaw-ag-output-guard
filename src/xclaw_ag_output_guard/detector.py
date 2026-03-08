@@ -95,13 +95,32 @@ class OutputGuard:
         for name, detector in self._detectors.items():
             try:
                 detection = detector.detect(content)
-                if detection.get('detected', False):
+
+                # Handle DetectionResult object (from xclaw-agentguard-framework v2.3.1+)
+                # or dict (legacy compatibility)
+                if hasattr(detection, 'detected'):
+                    # DetectionResult object
+                    is_detected = detection.detected
+                    confidence = getattr(detection, 'confidence', 0.0)
+
+                    # Extract patterns from DetectionEvidence
+                    evidence = getattr(detection, 'evidence', None)
+                    if evidence and hasattr(evidence, 'matched_patterns'):
+                        patterns = evidence.matched_patterns
+                    else:
+                        patterns = []
+                else:
+                    # Legacy dict format
+                    is_detected = detection.get('detected', False)
                     confidence = detection.get('confidence', 0.0)
+                    patterns = detection.get('patterns', [])
+
+                if is_detected:
                     max_confidence = max(max_confidence, confidence)
                     detected_risks.append({
                         'detector': name,
                         'confidence': confidence,
-                        'patterns': detection.get('patterns', []),
+                        'patterns': patterns,
                     })
             except Exception as e:
                 self.logger.error(f"Detector {name} failed: {e}")
