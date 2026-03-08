@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xclaw-ag-output-guard"
+version = "1.0.0"
+description = "Output validation and sanitization for OpenClaw agents - prevents credential leaks, PII exposure, and harmful content"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "XClaw AgentGuard Security Team"}
+]
+keywords = [
+    "openclaw",
+    "security",
+    "output-validation",
+    "credential-protection",
+    "pii-protection"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "xclaw-agentguard>=1.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/neil-njcn/xclaw-ag-output-guard"
+Repository = "https://github.com/neil-njcn/xclaw-ag-output-guard.git"
+Issues = "https://github.com/neil-njcn/xclaw-ag-output-guard/issues"
+
+[project.entry-points."openclaw.skills"]
+output_guard = "xclaw_ag_output_guard:OutputGuardSkill"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
