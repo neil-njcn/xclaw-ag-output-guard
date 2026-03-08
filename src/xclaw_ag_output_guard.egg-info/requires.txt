@@ -1,6 +1,0 @@
-xclaw-agentguard-framework>=2.3.1
-pyyaml>=6.0
-
-[dev]
-pytest>=7.0.0
-pytest-cov>=4.0.0

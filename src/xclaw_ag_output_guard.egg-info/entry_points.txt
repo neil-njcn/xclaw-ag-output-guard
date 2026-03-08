@@ -1,2 +1,0 @@
-[openclaw.skills]
-output_guard = xclaw_ag_output_guard:OutputGuardSkill
