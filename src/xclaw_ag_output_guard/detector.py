@@ -6,8 +6,9 @@ PII exposure, and harmful content.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from xclaw_agentguard import (
@@ -56,6 +57,28 @@ class ValidationResult:
 class OutputGuard:
     """Main class for output validation and sanitization."""
     
+    # URL patterns for phishing detection - checks both domain and path
+    PHISHING_URL_PATTERNS: List[Tuple[str, str]] = [
+        # Domain-based phishing keywords
+        (r'https?://[\w\.-]*phish[\w\.-]*\.(?:com|org|net|io|co)', 'phishing_domain'),
+        (r'https?://[\w\.-]*fake[\w\.-]*\.(?:com|org|net|io|co)', 'fake_domain'),
+        (r'https?://[\w\.-]*scam[\w\.-]*\.(?:com|org|net|io|co)', 'scam_domain'),
+        (r'https?://[\w\.-]*malicious[\w\.-]*\.(?:com|org|net|io|co)', 'malicious_domain'),
+        # Path-based phishing keywords
+        (r'https?://[\w\.-]+\.(?:com|org|net|io|co)/\S*phish', 'phishing_path'),
+        (r'https?://[\w\.-]+\.(?:com|org|net|io|co)/\S*fake', 'fake_path'),
+        (r'https?://[\w\.-]+\.(?:com|org|net|io|co)/\S*scam', 'scam_path'),
+    ]
+    
+    # Sensitive data patterns for credential leak detection
+    SENSITIVE_PATTERNS: List[Tuple[str, str]] = [
+        (r'password\s*[:=\s]\s*\S+', 'password'),
+        (r'api[_-]?key\s*[:=\s]\s*\S+', 'api_key'),
+        (r'sk-[a-zA-Z0-9]{20,}', 'openai_key'),
+        (r'private[_-]?key\s*[:=\s]\s*\S+', 'private_key'),
+        (r'token\s*[:=\s]\s*[a-zA-Z0-9_-]{20,}', 'token'),
+    ]
+    
     def __init__(self, config: Optional[Config] = None):
         self.config = config or Config()
         self.logger = logging.getLogger(__name__)
@@ -91,7 +114,17 @@ class OutputGuard:
         max_confidence = 0.0
         detected_risks = []
         
-        # Run all enabled detectors
+        # Run local pattern detection for phishing URLs and sensitive data
+        local_detection = self._detect_local_patterns(content)
+        if local_detection['detected']:
+            max_confidence = max(max_confidence, local_detection['confidence'])
+            detected_risks.append({
+                'detector': local_detection['type'],
+                'confidence': local_detection['confidence'],
+                'patterns': local_detection['patterns'],
+            })
+        
+        # Run all enabled detectors from xclaw-agentguard
         for name, detector in self._detectors.items():
             try:
                 detection = detector.detect(content)
@@ -147,6 +180,69 @@ class OutputGuard:
                 result.reason = f"Low-risk content flagged (confidence: {max_confidence:.2f})"
         
         return result
+    
+    def _detect_local_patterns(self, content: str) -> Dict[str, Any]:
+        """
+        Detect phishing URLs and sensitive data using local patterns.
+        
+        Args:
+            content: Text content to analyze
+            
+        Returns:
+            Dictionary with detection results
+        """
+        detected_patterns = []
+        
+        # Check for phishing URLs
+        for pattern, ptype in self.PHISHING_URL_PATTERNS:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                detected_patterns.append({
+                    'type': ptype,
+                    'match': match.group(0),
+                    'pattern': pattern,
+                })
+        
+        # Check for sensitive data
+        for pattern, ptype in self.SENSITIVE_PATTERNS:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                detected_patterns.append({
+                    'type': ptype,
+                    'match': match.group(0),
+                    'pattern': pattern,
+                })
+        
+        if detected_patterns:
+            # Determine confidence based on pattern types
+            phishing_patterns = [p for p in detected_patterns if 'phish' in p['type'] or 'fake' in p['type'] or 'scam' in p['type']]
+            sensitive_patterns = [p for p in detected_patterns if p['type'] in ['password', 'api_key', 'openai_key', 'private_key', 'token']]
+            
+            if phishing_patterns and sensitive_patterns:
+                confidence = 0.95  # Both phishing and sensitive data - very high risk
+                risk_type = 'combined_threat'
+            elif phishing_patterns:
+                confidence = 0.85  # Phishing URLs - high risk
+                risk_type = 'phishing_url'
+            else:
+                confidence = 0.8   # Sensitive data - high risk
+                risk_type = 'sensitive_data'
+            
+            return {
+                'detected': True,
+                'confidence': confidence,
+                'type': risk_type,
+                'patterns': [p['match'] for p in detected_patterns],
+                'details': detected_patterns,
+            }
+        
+        return {
+            'detected': False,
+            'confidence': 0.0,
+            'type': None,
+            'patterns': [],
+            'details': [],
+        }
     
     def _redact(self, content: str, risks: List[Dict]) -> str:
         """Redact sensitive content."""
